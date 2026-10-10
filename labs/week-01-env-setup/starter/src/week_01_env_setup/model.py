@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
@@ -27,6 +28,18 @@ def train_logistic_regression(x_train, y_train, settings: Settings) -> Pipeline:
                 ),
             ),
         ]
+    )
+    model.fit(x_train, y_train)
+    return model
+
+
+def train_random_forest(x_train, y_train, settings: Settings):
+    n_estimators = 500
+    max_depth = 10
+    model = RandomForestClassifier(
+        random_state=settings.random_seed,
+        n_estimators=n_estimators,
+        max_depth=max_depth,
     )
     model.fit(x_train, y_train)
     return model
