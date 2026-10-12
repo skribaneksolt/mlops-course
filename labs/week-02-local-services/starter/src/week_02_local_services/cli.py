@@ -5,6 +5,7 @@ import json
 from .config import load_settings
 from .data import build_dataset, load_dataframe
 from .model import evaluate_model, train_logistic_regression
+import mlflow
 
 
 def main() -> None:
@@ -24,6 +25,9 @@ def main() -> None:
     # TODO(student) Exercise 3, part 1: point MLflow at the tracking server in
     # settings.mlflow_tracking_uri, and select the experiment
     # settings.mlflow_experiment_name (set_tracking_uri, set_experiment).
+    
+    mlflow.set_tracking_uri(settings.mlflow_tracking_uri)
+    mlflow.set_experiment(settings.mlflow_experiment_name)
 
     # TODO(student) Exercise 3, part 2: put the training and evaluation below
     # inside an MLflow run (start_run, as a `with` block). In the run:
@@ -32,9 +36,18 @@ def main() -> None:
     #   - log the fitted pipeline as a model named "model" (mlflow.sklearn).
     # Then delete the last print line.
     # Tutorial: https://mlflow.org/docs/latest/ml/tracking/quickstart/
-    model = train_logistic_regression(x_train, y_train, settings)
-    metrics = evaluate_model(model, x_test, y_test)
-    print("Logistic Regression metrics:")
-    print(json.dumps(metrics, indent=2))
-    print()
-    print("This run is not tracked yet (Exercise 3).")
+    with mlflow.start_run():
+        mlflow.log_params({
+            "random_seed": settings.random_seed,
+            "test_size": settings.test_size,
+            "max_iter": settings.max_iter
+        })
+        
+        model = train_logistic_regression(x_train, y_train, settings)
+        model_info = mlflow.sklearn.log_model(sk_model=model, name="model")
+        
+        metrics = evaluate_model(model, x_test, y_test)
+        mlflow.log_metrics(metrics=metrics)
+        
+        print("Logistic Regression metrics:")
+        print(json.dumps(metrics, indent=2))

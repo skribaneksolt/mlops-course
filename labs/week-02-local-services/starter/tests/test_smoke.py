@@ -57,7 +57,7 @@ def test_seed_42_metrics() -> None:
     assert metrics["accuracy"] == pytest.approx(0.7344, abs=0.001)
 
 
-@pytest.mark.skip(reason="Exercise 3 — log the run in cli.py, then delete this skip marker.")
+# @pytest.mark.skip(reason="Exercise 3 — log the run in cli.py, then delete this skip marker.")
 def test_mlflow_run_logged() -> None:
     """The latest run in the experiment has the params, the metrics and the baseline F1."""
     import urllib.request
