@@ -10,6 +10,7 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "mlflow==3.13.0",
     "boto3>=1.38.0",
+    "psycopg[binary]==3.3.6",
 ]
 
 [dependency-groups]

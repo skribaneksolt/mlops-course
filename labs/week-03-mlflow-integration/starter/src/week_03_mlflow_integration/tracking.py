@@ -134,6 +134,15 @@ def log_training_run(
         # data_path (settings.data_path.name), n_rows, and the entries of
         # `hyperparams`, so the swept value is recorded too. Log max_iter for the
         # forest as well, which ignores it: it keeps the UI's compare table even.
+        mlflow.log_params({
+            "model_family": family,
+            "random_seed": settings.random_seed,
+            "test_size": settings.test_size,
+            "max_iter": settings.max_iter,
+            "data_path": settings.data_path.name,
+            "n_rows": len(y_train) + len(y_test),
+            **hyperparams
+        })
 
         # ── Tags: free-form labels, the thing you search on later ────────────
         # TODO(student) — Exercise 1b: set the tags in one call (set_tags):
@@ -141,6 +150,14 @@ def log_training_run(
         # back to the code), and sweep (sweep_tag), only when sweep_tag is not
         # None. Params are for reproducing a run; tags are for finding it later.
         #
+        tags = {
+            "model_family": family,
+            "git_commit": git_commit(),
+        }
+        if sweep_tag is not None:
+            tags["sweep"] = sweep_tag
+        mlflow.set_tags(tags)
+        
         # TODO(student) — Exercise 6, part 3: you will come back to this call.
 
         model = build_model(family, hyperparams, settings)
@@ -149,6 +166,7 @@ def log_training_run(
 
         # ── Metrics: the measured outcome ─────────────────────────────────────
         # TODO(student) — Exercise 1c: log every metric in `metrics` in one call.
+        mlflow.log_metrics(metrics=metrics)
 
         # ── Plots as artifacts ────────────────────────────────────────────────
         # TODO(student) — Exercise 2: build both figures with the functions in
@@ -157,6 +175,13 @@ def log_training_run(
         # artifact store, with no local file). Close each figure after logging it
         # (plt.close), or matplotlib warns once more than 20 figures are open.
         # Reference: https://mlflow.org/docs/latest/api_reference/python_api/mlflow.html#mlflow.log_figure
+        roc_curve_fig = roc_curve_figure(model, x_test, y_test)
+        mlflow.log_figure(roc_curve_fig, "plots/roc_curve.png")
+        plt.close(roc_curve_fig)
+        
+        conf_matrix_fig = confusion_matrix_figure(model, x_test, y_test)
+        mlflow.log_figure(conf_matrix_fig, "plots/confusion_matrix.png")
+        plt.close(conf_matrix_fig)
 
         # ── The model itself ──────────────────────────────────────────────────
         # TODO(student) — Exercise 1d: log the fitted model under the name
@@ -165,6 +190,12 @@ def log_training_run(
         # training rows as an input example. The signature fills the UI's Schema
         # tab, and a serving runtime reads it to check requests (Week 9).
         # Reference: https://mlflow.org/docs/latest/ml/model/signatures/
+        mlflow.sklearn.log_model(
+            model,
+            name="model",
+            signature=infer_signature(x_train, model.predict(x_train)),
+            input_example=x_train.head(3)
+        )
 
         return RunResult(run_id=run.info.run_id, run_name=run_name, metrics=metrics)
 
@@ -204,6 +235,14 @@ def run_sweep(settings: Settings) -> list[RunResult]:
         )
 
         # TODO(student) — Exercise 3: one child run per grid cell.
+        for family, hyperparams in SWEEP_GRID:
+            result = log_training_run(settings=settings,
+                             family=family,
+                             hyperparams=hyperparams,
+                             sweep_tag=SWEEP_TAG,
+                             nested=True)
+            results.append(result)
+        
 
         # Record the winner on the parent, so the sweep summarises itself.
         if results:
@@ -270,7 +309,11 @@ def search_sweep_runs(
         return pd.DataFrame()
     _ = (metric, min_f1)  # silence unused-argument warnings until you implement
     # TODO(student) — Exercise 4: the search_runs(...) call described above.
-    return pd.DataFrame()
+    return mlflow.search_runs(
+        experiment_names=[settings.mlflow_experiment_name],
+        filter_string=f"tags.mlflow.parentRunId = '{parent_id}' and metrics.f1 > {min_f1}",
+        order_by=[f"metrics.{metric} DESC", "attributes.start_time DESC"])
+
 
 
 def find_best_run(settings: Settings, *, metric: str = "f1") -> str:

@@ -46,8 +46,9 @@ def register_best_model(settings: Settings, run_id: str) -> ModelVersion | None:
     MLflow 3 stores logged-model files outside the run's artifact root.
     """
     mlflow.set_tracking_uri(settings.mlflow_tracking_uri)
-    _ = run_id  # silence the unused-argument warning until you implement
-    return None  # placeholder — the CLI reports this as "not implemented yet"
+    return mlflow.register_model(
+        model_uri=f"runs:/{run_id}/model",
+        name=settings.registered_model_name, tags={"registered_from": "week3-sweep"})
 
 
 def latest_version(settings: Settings) -> ModelVersion:
